@@ -5,11 +5,9 @@ using [InSilicoSeq](https://github.com/HadrienG/InSilicoSeq).
 
 ## What it does
 
-1. Selects a community of organisms (biome-weighted or random NCBI download)
-2. Draws relative abundances from a log-normal distribution
-3. Runs ISS with a HiSeq / MiSeq / NovaSeq error profile to simulate reads
-4. Optionally: runs jellyfish to count how many unique k-mers in the reads
-   are absent from the reference genomes — this is the ISS error injection rate
+1. Picks a set of organisms and assigns them relative abundances
+2. Runs ISS with a HiSeq / MiSeq / NovaSeq error profile to simulate paired-end reads
+3. Optionally estimates the actual error rate ISS injected using jellyfish k-mer analysis
 
 ## Requirements
 
@@ -17,24 +15,20 @@ using [InSilicoSeq](https://github.com/HadrienG/InSilicoSeq).
 |---|---|
 | InSilicoSeq | `pip install InSilicoSeq` |
 | numpy | `pip install numpy` |
-| pandas | `pip install pandas` (local mode only) |
-| biopython | `pip install biopython` (local mode only) |
+| pandas + biopython | `pip install pandas biopython` (local mode only) |
 | jellyfish 2 | `apt/brew/conda install jellyfish` (only with `--jellyfish`) |
 
 ## Usage
 
 ```bash
-# single run, gut biome, random model, local genomes
-python run.py --output sims/
-
-# 5 runs, MiSeq error model, with error rate estimation
-python run.py --output sims/ --n-runs 5 --model MiSeq --jellyfish
-
-# NCBI mode -- no local genomes needed
+# one run, any model, NCBI genomes
 python run.py --output sims/ --ncbi-mode
 
-# resume a partial batch, 10 runs
-python run.py --output sims/ --n-runs 10 --resume
+# 5 runs, MiSeq, with error rate estimation
+python run.py --output sims/ --n-runs 5 --model MiSeq --jellyfish --ncbi-mode
+
+# 10 runs, resume if interrupted
+python run.py --output sims/ --n-runs 10 --ncbi-mode --resume
 ```
 
 ## Flags
@@ -45,8 +39,8 @@ python run.py --output sims/ --n-runs 10 --resume
 | `--n-runs N` | `1` | Number of simulation runs |
 | `--model` | random | `HiSeq` \| `MiSeq` \| `NovaSeq` |
 | `--n-reads MIN MAX` | `300 10000` | Read count range in thousands (log-uniform) |
-| `--community-size MIN MAX` | `3 200` | Genomes per community (log-uniform, local mode) |
-| `--ncbi-mode` | off | Download genomes from NCBI instead of using local store |
+| `--community-size MIN MAX` | `3 200` | Genomes per community, log-uniform (local mode only) |
+| `--ncbi-mode` | off | Download genomes from NCBI each run (no setup required) |
 | `--jellyfish` | off | Estimate ISS error rate via k-mer analysis |
 | `--seed N` | `42` | Random seed |
 | `--cpus N` | all | CPUs per run |
@@ -54,25 +48,16 @@ python run.py --output sims/ --n-runs 10 --resume
 
 ## Modes
 
-### LOCAL (default)
+### NCBI (recommended)
 
-Reads genomes from `references/manifest.tsv`.
-Run `01_download_references.py` first to populate the local store.
-Community composition is sampled from biome-weighted Dirichlet distributions:
+Pass `--ncbi-mode`. ISS downloads genomes from NCBI each run — no setup needed.
+Randomly picks 1–3 kingdoms from `bacteria`, `viruses`, `archaea`.
 
-| Biome | Dominant kingdoms |
-|---|---|
-| gut | bacteria 72%, archaea 8%, host 7% |
-| soil | bacteria 58%, fungi 15%, protists 8% |
-| marine | bacteria 60%, archaea 18%, viral 10% |
-| clinical | bacteria 50%, host 35% |
-| oral | bacteria 74%, fungi 8%, viral 8% |
+### LOCAL
 
-### NCBI
-
-ISS fetches genomes directly from NCBI each run.
-Randomly picks 1–3 kingdoms from: `bacteria`, `viruses`, `archaea`.
-Auto-enabled when `references/manifest.tsv` is missing.
+Default when a `references/manifest.tsv` file is present.
+Expects pre-downloaded FASTA files organised by kingdom.
+Community composition varies by biome (`gut`, `soil`, `marine`, `clinical`, `oral`).
 
 ## Output per run
 
